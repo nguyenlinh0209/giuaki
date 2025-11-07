@@ -1,7 +1,6 @@
 package com.example.giua_ki
 
 import android.widget.Toast
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -16,17 +15,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
-import com.google.firebase.auth.FirebaseAuth
 import com.example.giua_ki.route.Screen
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -36,6 +34,8 @@ fun SignUp(navController: NavHostController) {
     var confirm by remember { mutableStateOf("") }
     val context = LocalContext.current
     val firebaseAuth = FirebaseAuth.getInstance()
+    val db = FirebaseFirestore.getInstance()
+
     val (focusEmail, focusPassword) = remember { FocusRequester.createRefs() }
     val keyboardController = LocalSoftwareKeyboardController.current
     var showPassword by remember { mutableStateOf(false) }
@@ -128,12 +128,26 @@ fun SignUp(navController: NavHostController) {
                 if (email.isNotEmpty() && password.isNotEmpty() && confirm.isNotEmpty()) {
                     if (password == confirm) {
                         firebaseAuth.createUserWithEmailAndPassword(email, password)
-                            .addOnCompleteListener {
-                                if (it.isSuccessful) {
-                                    Toast.makeText(context, "Đăng ký thành công!", Toast.LENGTH_SHORT).show()
-                                    navController.navigate(Screen.Signin.route)
+                            .addOnCompleteListener { task ->
+                                if (task.isSuccessful) {
+                                    val userId = firebaseAuth.currentUser?.uid
+                                    val user = hashMapOf(
+                                        "email" to email,
+                                        "role" to "user"
+                                    )
+
+                                    if (userId != null) {
+                                        db.collection("users").document(userId).set(user)
+                                            .addOnSuccessListener {
+                                                Toast.makeText(context, "Đăng ký thành công!", Toast.LENGTH_SHORT).show()
+                                                navController.navigate(Screen.Signin.route)
+                                            }
+                                            .addOnFailureListener {
+                                                Toast.makeText(context, "Lỗi lưu thông tin người dùng!", Toast.LENGTH_SHORT).show()
+                                            }
+                                    }
                                 } else {
-                                    Toast.makeText(context, it.exception?.message, Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, task.exception?.message, Toast.LENGTH_SHORT).show()
                                 }
                             }
                     } else {

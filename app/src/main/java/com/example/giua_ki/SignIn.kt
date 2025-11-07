@@ -2,7 +2,6 @@ package com.example.giua_ki
 
 import android.content.Intent
 import android.widget.Toast
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,16 +18,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.example.giua_ki.route.Screen
 
 @OptIn(ExperimentalComposeUiApi::class, ExperimentalMaterial3Api::class)
@@ -41,6 +39,7 @@ fun SignIn(navController: NavHostController) {
     var isPasswordVisible by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val firebaseAuth = FirebaseAuth.getInstance()
+    val db = FirebaseFirestore.getInstance()
 
     Column(
         modifier = Modifier
@@ -115,10 +114,16 @@ fun SignIn(navController: NavHostController) {
                     firebaseAuth.signInWithEmailAndPassword(email, password)
                         .addOnCompleteListener { task ->
                             if (task.isSuccessful) {
-                                Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+                                val userId = firebaseAuth.currentUser?.uid
+                                db.collection("Users").document(userId!!).get()
+                                    .addOnSuccessListener { document ->
+                                        val role = document.getString("role") ?: "user"
 
-                                val intent = Intent(context, MainActivity::class.java)
-                                context.startActivity(intent)
+                                        Toast.makeText(context, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show()
+                                        val intent = Intent(context, MainActivity::class.java)
+                                        intent.putExtra("role", role)
+                                        context.startActivity(intent)
+                                    }
                             } else {
                                 Toast.makeText(context, task.exception?.message, Toast.LENGTH_SHORT).show()
                             }
